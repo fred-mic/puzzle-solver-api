@@ -67,7 +67,7 @@ class PuzzleService:
             # to either a Python list of tuples or None. It's seamless.
             return cpp_solver.solve(list(initial_state))
         else:
-            """ if initial_state == self.goal_state: 
+            if initial_state == self.goal_state: 
                 return []
             open_heap = [(self.heuristic(initial_state), initial_state)]
             open_set_hash = {initial_state}
@@ -94,7 +94,7 @@ class PuzzleService:
                         f_score = tentative_g_score + self.heuristic(neighbor_state)
                         if neighbor_state not in open_set_hash:
                             heapq.heappush(open_heap, (f_score, neighbor_state))
-                            open_set_hash.add(neighbor_state) """
+                            open_set_hash.add(neighbor_state)
             return None
 
     def solve_single_puzzle(self, initial_state: Tuple[int, ...]) -> List[Tuple[int, ...]]:
