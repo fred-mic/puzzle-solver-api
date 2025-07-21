@@ -32,7 +32,7 @@ pip install -r requirements.txt
 For fast creation of the solutions database a C++ implementation of the A\* algorithm is used to solve all the 181,440 possible combinations of puzzle states.
 
 
-**Run these commands from your terminal:**
+**Run this from your terminal:**
 
 ```bash
 python setup.py build_ext --inplace
