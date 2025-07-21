@@ -75,19 +75,11 @@ curl -X 'POST' \
   'http://127.0.0.1:8000/solve' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
-  -d '{
-  "state":
-}'
+  -d '{"state": [1,2,3,4,5,6,7,0,8]}'
 ```
 
 **Expected Response:**
 
 ```json
-{
-  "solution": [
-   ,
-   ,
-   
-  ]
-}
+{"solution":[[1,2,3,4,5,6,7,0,8],[1,2,3,4,5,6,7,8,0]]}
 ```
