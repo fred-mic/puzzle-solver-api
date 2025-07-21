@@ -6,3 +6,5 @@ numpy
 faiss-cpu
 tqdm
 python-multipart
+setuptools
+pybind11
