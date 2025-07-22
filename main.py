@@ -1,13 +1,39 @@
 # main.py
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Security
 from pydantic import BaseModel
-from typing import List, Tuple
-
+from typing import List
+import os
+from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from puzzle_service import PuzzleService
 
 # --- Configuration ---
 DB_FILENAME = "puzzle_solutions"
+
+load_dotenv()
+API_SECRET_TOKEN = os.getenv("API_SECRET_TOKEN")
+
+# --- Security Setup ---
+# This tells FastAPI to look for an "Authorization: Bearer <token>" header
+bearer_scheme = HTTPBearer()
+
+def verify_token(credentials: HTTPAuthorizationCredentials = Security(bearer_scheme)):
+    """
+    A dependency that verifies the provided bearer token.
+    If the token is invalid, it raises a 401 Unauthorized error.
+    """
+    if not API_SECRET_TOKEN:
+        raise HTTPException(status_code=500, detail="API secret token not configured on server.")
+        
+    if credentials.scheme != "Bearer" or credentials.credentials != API_SECRET_TOKEN:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or missing authentication token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return credentials.credentials
+
 
 #    For development, this is your React app's address.
 origins = [

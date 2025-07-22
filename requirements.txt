@@ -1,6 +1,7 @@
 # requirements.txt
 
 fastapi
+python-dotenv
 uvicorn[standard]
 numpy
 faiss-cpu
