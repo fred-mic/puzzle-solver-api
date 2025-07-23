@@ -1,5 +1,6 @@
 # main.py
 from fastapi import FastAPI, HTTPException, Security
+from mangum import Mangum
 from pydantic import BaseModel
 from typing import List
 import os
@@ -56,6 +57,8 @@ app = FastAPI(
     version="1.0.0"
 )
 
+handler = Mangum(app)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -91,8 +94,9 @@ def read_root():
         "message": "Welcome to the Puzzle Solver API!"
     }
 
+
 @app.post("/solve", response_model=SolutionPath, summary="Solve a Puzzle")
-def solve_puzzle(puzzle: PuzzleState):
+async def solve_puzzle(puzzle: PuzzleState):
     """
     Receives a puzzle state and returns the optimal solution path.
 

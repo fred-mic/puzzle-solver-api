@@ -1,6 +1,7 @@
 # requirements.txt
 
 fastapi
+mangum
 python-dotenv
 uvicorn[standard]
 numpy

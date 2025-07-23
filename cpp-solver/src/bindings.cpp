@@ -8,7 +8,7 @@
 namespace py = pybind11;
 
 // This macro creates a Python module.
-// The first argument is the name of the module as it will appear in Python (e.g., `import cpp_solver`).
+// The first argument is the name of the module as it will appear in Python (e.g., `import cpp-solver`).
 // The second argument, 'm', is a variable representing the module object.
 PYBIND11_MODULE(cpp_solver, m) {
     m.doc() = "High-performance C++ puzzle solver"; // Optional module docstring
