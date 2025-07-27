@@ -30,6 +30,5 @@ find_package(Python REQUIRED COMPONENTS Interpreter Development)
 # The first argument is the name of the module.
 pybind11_add_module(cpp_solver src/bindings.cpp)
 
-# Optional: Add compiler flags for optimization
-target_compile_definitions(cpp_solver PRIVATE VERSION_INFO=3.12.3)
+target_compile_definitions(cpp_solver PRIVATE VERSION_INFO=3.12.3) # Use other version if 3.12.3 is not available
 # --- End of Target 2 ---

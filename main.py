@@ -1,19 +1,13 @@
 # main.py
 from fastapi import FastAPI, HTTPException, Security
-from mangum import Mangum
 from pydantic import BaseModel
 from typing import List
-import os
-from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from puzzle_service import PuzzleService
+from contextlib import asynccontextmanager
+import config
 
-# --- Configuration ---
-DB_FILENAME = "puzzle_solutions"
-
-load_dotenv()
-API_SECRET_TOKEN = os.getenv("API_SECRET_TOKEN")
 
 # --- Security Setup ---
 # This tells FastAPI to look for an "Authorization: Bearer <token>" header
@@ -24,10 +18,8 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(bearer_sch
     A dependency that verifies the provided bearer token.
     If the token is invalid, it raises a 401 Unauthorized error.
     """
-    if not API_SECRET_TOKEN:
-        raise HTTPException(status_code=500, detail="API secret token not configured on server.")
-        
-    if credentials.scheme != "Bearer" or credentials.credentials != API_SECRET_TOKEN:
+
+    if credentials.scheme != "Bearer" or credentials.credentials != config.API_SECRET_TOKEN:
         raise HTTPException(
             status_code=401,
             detail="Invalid or missing authentication token",
@@ -51,13 +43,20 @@ class SolutionPath(BaseModel):
     solution: List[List[int]]
 
 # --- FastAPI Application Setup ---
+
+@asynccontextmanager
+async def lifespan(app):
+    print("Server starting up...")
+    puzzle_service.load_database()
+    yield
+    print("Server shutting down...")
+
 app = FastAPI(
     title="8-Puzzle Solver API",
     description="An API to solve 8-puzzles (3x3 grid) using a pre-calculated pattern database.",
-    version="1.0.0"
+    version="1.1.0",
+    lifespan=lifespan
 )
-
-handler = Mangum(app)
 
 app.add_middleware(
     CORSMiddleware,
@@ -71,18 +70,6 @@ app.add_middleware(
 # Create a single, shared instance of our service
 # This instance will be populated at startup.
 puzzle_service = PuzzleService()
-
-@app.on_event("startup")
-def startup_event():
-    """On server startup, load the puzzle database from disk."""
-    print("Server starting up...")
-    puzzle_service.load_database(DB_FILENAME)
-
-@app.on_event("shutdown")
-def shutdown_event():
-    """On server shutdown, save any new in-memory solutions to disk."""
-    print("Server shutting down...")
-    puzzle_service.save_database(DB_FILENAME)
 
 # --- API Endpoints ---
 @app.get("/", summary="Health Check")

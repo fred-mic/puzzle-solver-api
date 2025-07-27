@@ -1,12 +1,11 @@
 # requirements.txt
 
 fastapi
-mangum
 python-dotenv
 uvicorn[standard]
-numpy
-faiss-cpu
 tqdm
 python-multipart
 setuptools
 pybind11
+numpy
+faiss-cpu

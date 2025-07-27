@@ -7,33 +7,88 @@ from collections import deque
 from typing import List, Tuple, Dict, Optional
 import os
 from tqdm import tqdm
-import time
 
-try:
-    import cpp_solver
-    CPP_SOLVER_AVAILABLE = True
-    print("Successfully imported C++ solver module.")
-except ImportError:
-    CPP_SOLVER_AVAILABLE = False
-    print("WARNING: C++ solver module not found. Falling back to slower Python implementation.")
+import config
 
+DB_FILENAME_BASE = "puzzle_solutions"
 
 class PuzzleService:
-    """
-    Encapsulates all the core logic for solving puzzles and managing the
-    solution database. This class does not handle any web requests.
-    """
     def __init__(self, grid_size: int = 3):
         self.grid_size = grid_size
         self.vector_dim = self.grid_size ** 2
         self.goal_state = tuple(range(1, self.vector_dim)) + (0,)
         
-        # Initialize database components
         self.index: Optional[faiss.Index] = None
         self.state_to_id: Dict[Tuple[int, ...], int] = {}
         self.id_to_state: Dict[int, Tuple[int, ...]] = {}
         self.solutions: Dict[Tuple[int, ...], List[Tuple[int, ...]]] = {}
         
+        # S3 client initialization is completely removed.
+
+    def load_database(self):
+        """
+        Loads the FAISS index and metadata from the local filesystem.
+        If the files are not found, it prints a helpful message to the console.
+        """
+        faiss_file = f"{DB_FILENAME_BASE}.faiss"
+        meta_file = f"{DB_FILENAME_BASE}_metadata.pkl"
+
+        # Check if both required database files exist locally.
+        if not os.path.exists(faiss_file) or not os.path.exists(meta_file):
+            print("\n---")
+            print("WARNING: Database files not found locally.")
+            print(f"Please run 'python build_db.py' to generate '{faiss_file}' and '{meta_file}'.")
+            print("The service will run without a database, solving all puzzles on-the-fly (this will be slower).")
+            print("---\n")
+            return # Exit the function
+
+        print(f"Loading database from local files: '{faiss_file}' and '{meta_file}'...")
+        try:
+            # Load the FAISS index from the local file
+            self.index = faiss.read_index(faiss_file)
+            
+            # Load the metadata dictionary from the local pickle file
+            with open(meta_file, 'rb') as f:
+                metadata = pickle.load(f)
+            
+            self.state_to_id = metadata['state_to_id']
+            self.id_to_state = metadata['id_to_state']
+            self.solutions = metadata['solutions']
+            
+            print(f"Database loaded successfully with {self.index.ntotal} solutions.")
+
+        except Exception as e:
+            print(f"An unexpected error occurred during database loading: {e}")
+            print("The database files might be corrupted. Consider rebuilding them with 'build_db.py'.")
+
+
+    def save_database(self):
+        """
+        Saves the current in-memory database to the local filesystem.
+        """
+        if self.index is None or self.index.ntotal == 0:
+            print("Database is empty. Nothing to save.")
+            return
+
+        faiss_file = f"{DB_FILENAME_BASE}.faiss"
+        meta_file = f"{DB_FILENAME_BASE}_metadata.pkl"
+
+        print(f"Saving database to local files: '{faiss_file}' and '{meta_file}'...")
+        try:
+            # Save the FAISS index
+            faiss.write_index(self.index, faiss_file)
+
+            # Save the metadata dictionary
+            metadata = {'state_to_id': self.state_to_id, 'id_to_state': self.id_to_state, 'solutions': self.solutions}
+            with open(meta_file, 'wb') as f:
+                pickle.dump(metadata, f)
+            
+            print("Database saved successfully to local disk.")
+        
+        except Exception as e:
+            print(f"An error occurred while saving the database locally: {e}")
+
+
     def initialize_faiss_index(self):
         """Creates a new, empty FAISS index."""
         self.index = faiss.IndexFlatL2(self.vector_dim)
@@ -175,29 +230,5 @@ class PuzzleService:
             print("Direct A* solver could not find a solution for this state.")
         return solution_path
 
-    def save_database(self, filename: str):
-        if self.index is None or self.index.ntotal == 0:
-            print("Database is empty. Nothing to save.")
-            return
-        print(f"Saving database to {filename}...")
-        faiss.write_index(self.index, f"{filename}.faiss")
-        metadata = {'state_to_id': self.state_to_id, 'id_to_state': self.id_to_state, 'solutions': self.solutions}
-        with open(f"{filename}_metadata.pkl", 'wb') as f:
-            pickle.dump(metadata, f)
-        print("Database saved successfully.")
-
-    def load_database(self, filename: str):
-        faiss_file = f"{filename}.faiss"
-        meta_file = f"{filename}_metadata.pkl"
-        if not os.path.exists(faiss_file) or not os.path.exists(meta_file):
-            print("Database files not found. Starting with an empty database.")
-            self.initialize_faiss_index()
-            return
-        print(f"Loading database from {filename}...")
-        self.index = faiss.read_index(faiss_file)
-        with open(meta_file, 'rb') as f:
-            metadata = pickle.load(f)
-        self.state_to_id = metadata['state_to_id']
-        self.id_to_state = metadata['id_to_state']
-        self.solutions = metadata['solutions']
-        print(f"Database loaded with {self.index.ntotal} solutions.")
+    
+    

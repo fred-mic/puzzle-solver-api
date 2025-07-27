@@ -1,0 +1,18 @@
+# .dockerignore
+
+# Git files
+.git/
+.gitignore
+
+# Python virtual environment and cache
+venv/
+__pycache__/
+*.pyc
+
+# Local environment variables and secrets
+# This is CRITICAL to prevent your secrets from being copied into the image.
+.env
+
+# Build artifacts from other processes (like C++ builds)
+build/
+dist/
