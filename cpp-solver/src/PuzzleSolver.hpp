@@ -125,7 +125,7 @@ private:
             if (lhs.f_score != rhs.f_score) {
                 return lhs.f_score > rhs.f_score;
             }
-            return lhs.g_score < rhs.g_score;
+            return lhs.g_score > rhs.g_score;
         }
     };
 

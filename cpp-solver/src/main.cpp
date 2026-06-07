@@ -1,5 +1,6 @@
 // src/main.cpp
 #include "PuzzleSolver.hpp"
+#include <iostream>
 #include <string> // For std::stoi
 
 // Helper function to print a path (no change)
