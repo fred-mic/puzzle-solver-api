@@ -22,8 +22,7 @@ class PuzzleService:
         self.state_to_id: Dict[Tuple[int, ...], int] = {}
         self.id_to_state: Dict[int, Tuple[int, ...]] = {}
         self.solutions: Dict[Tuple[int, ...], List[Tuple[int, ...]]] = {}
-        
-        # S3 client initialization is completely removed.
+
 
     def load_database(self):
         """
