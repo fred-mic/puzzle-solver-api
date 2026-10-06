@@ -21,6 +21,7 @@ eggs/
 .venv
 env/
 venv/
+.venv/
 ENV/
 env.bak/
 venv.bak/
@@ -59,3 +60,6 @@ ipython_config.py
 *.sqlite3 # Django
 *.faiss # FAISS database
 *.pkl # FAISS metadata files
+
+# Harness
+.pi/

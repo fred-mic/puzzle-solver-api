@@ -27,6 +27,16 @@ source venv/bin/activate  # On Windows use `venv\Scripts\activate`
 # Install required packages
 pip install -r requirements.txt
 ```
+Before building the database or starting the server, copy `.env.template` to `.env`
+and set `API_SECRET_TOKEN` to a strong random secret. You can generate one with:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+Keep `.env` private and out of version control. Alternatively, set
+`API_SECRET_TOKEN` directly in the server's environment.
+
 ### 2. Build the module used to create solutions (C++ source files)
 
 For fast creation of the solutions database a C++ implementation of the A\* algorithm is used to solve all the 181,440 possible combinations of puzzle states.
@@ -68,13 +78,26 @@ The server will be running at `http://127.0.0.1:8000`.
 
 You can now send requests to the API. You can use tools like `curl`, Postman, or any programming language. The interactive docs are also available at `http://127.0.0.1:8000/docs`.
 
+`POST /solve` requires an `Authorization: Bearer <token>` header. Missing,
+incorrect, or malformed credentials receive `401 Unauthorized` with
+`WWW-Authenticate: Bearer`. The health check (`GET /`) remains public.
+
+This shared secret is intended for trusted service-to-service clients. Do not
+embed it in a React app or other distributed browser code; use individual
+identity-based credentials for public clients. CORS is not access control. Use
+HTTPS when deploying the API.
+
 **Example using `curl`:**
+
+Set `API_SECRET_TOKEN` in your client shell to the same secret configured on the
+server. The server's `.env` loading does not export it to your shell.
 
 ```bash
 curl -X 'POST' \
   'http://127.0.0.1:8000/solve' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer ${API_SECRET_TOKEN}" \
   -d '{"state": [1,2,3,4,5,6,7,0,8]}'
 ```
 
@@ -83,3 +106,15 @@ curl -X 'POST' \
 ```json
 {"solution":[[1,2,3,4,5,6,7,0,8],[1,2,3,4,5,6,7,8,0]]}
 ```
+
+## Authentication Tests
+
+Install the test dependencies and run the authentication regression suite:
+
+```bash
+pip install -r requirements-dev.txt
+python -m unittest discover -s tests -p 'test_authentication.py' -v
+```
+
+The tests use a temporary test token and mock database loading and solving; no
+real API secret, solution artifacts, or native solver build is needed.

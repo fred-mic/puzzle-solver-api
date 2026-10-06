@@ -1,25 +1,31 @@
 # main.py
 from fastapi import FastAPI, HTTPException, Security
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from puzzle_service import PuzzleService
 from contextlib import asynccontextmanager
+import secrets
 import config
 
 
 # --- Security Setup ---
-# This tells FastAPI to look for an "Authorization: Bearer <token>" header
-bearer_scheme = HTTPBearer()
+# Handle all authentication failures here instead of using framework-specific errors.
+bearer_scheme = HTTPBearer(auto_error=False)
 
-def verify_token(credentials: HTTPAuthorizationCredentials = Security(bearer_scheme)):
-    """
-    A dependency that verifies the provided bearer token.
-    If the token is invalid, it raises a 401 Unauthorized error.
-    """
-
-    if credentials.scheme != "Bearer" or credentials.credentials != config.API_SECRET_TOKEN:
+def verify_token(
+    credentials: Optional[HTTPAuthorizationCredentials] = Security(bearer_scheme),
+):
+    """Require a valid bearer token, returning the same 401 for every failure."""
+    if (
+        credentials is None
+        or credentials.scheme.lower() != "bearer"
+        or not secrets.compare_digest(
+            credentials.credentials.encode("utf-8"),
+            config.API_SECRET_TOKEN.encode("utf-8"),
+        )
+    ):
         raise HTTPException(
             status_code=401,
             detail="Invalid or missing authentication token",
@@ -82,7 +88,12 @@ def read_root():
     }
 
 
-@app.post("/solve", response_model=SolutionPath, summary="Solve a Puzzle")
+@app.post(
+    "/solve",
+    response_model=SolutionPath,
+    summary="Solve a Puzzle",
+    dependencies=[Security(verify_token)],
+)
 async def solve_puzzle(puzzle: PuzzleState):
     """
     Receives a puzzle state and returns the optimal solution path.
