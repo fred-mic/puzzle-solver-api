@@ -1,32 +1,22 @@
-# build_db.py
-
-from puzzle_service import PuzzleService, DB_FILENAME_BASE
+"""Generate the compact, immutable 8-puzzle solution table offline."""
 import time
-import math
+from puzzle_service import DATABASE_PATH, PuzzleService
+from solution_database import MAX_MOVES, REACHABLE_COUNT
+
 
 def main():
-    """
-    Builds the complete solution database and saves the files locally.
-    """
-    TOTAL_POSSIBLE_STATES = math.factorial(9) // 2 
-    
-    print("=== Building Complete Solution Database Locally ===")
+    print("=== Building Immutable Solution Table with Reverse BFS ===")
     service = PuzzleService()
-    
-    start_time = time.time()
-    # This function generates all states and solves them, populating the
-    # service's in-memory database attributes.
-    service.build_solution_database(TOTAL_POSSIBLE_STATES)
-    build_time = time.time() - start_time
-    
-    print(f"\nDatabase built in {build_time:.2f} seconds")
-    
-    # Now, call the refactored save_database method to write the
-    # in-memory database to local files.
+    start_time = time.perf_counter()
+    service.build_solution_database(REACHABLE_COUNT)
+    if service.database_entries != REACHABLE_COUNT:
+        raise RuntimeError("Reverse BFS did not generate all 181,440 reachable states.")
+    if service.database.maximum_distance != MAX_MOVES:
+        raise RuntimeError("Unexpected maximum 8-puzzle solution distance.")
     service.save_database()
-    
-    print("\nDatabase generation complete.")
-    print(f"Files created: '{DB_FILENAME_BASE}.faiss' and '{DB_FILENAME_BASE}_metadata.pkl'")
+    print(f"\nBuilt {service.database_entries} optimal entries in {time.perf_counter() - start_time:.2f} seconds")
+    print(f"Maximum distance: {service.database.maximum_distance} moves")
+    print(f"Artifact: '{DATABASE_PATH}' ({DATABASE_PATH.stat().st_size:,} bytes)")
 
 
 if __name__ == "__main__":

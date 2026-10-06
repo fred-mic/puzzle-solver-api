@@ -59,7 +59,7 @@ async def lifespan(app):
 
 app = FastAPI(
     title="8-Puzzle Solver API",
-    description="An API to solve 8-puzzles (3x3 grid) using a pre-calculated pattern database.",
+    description="An API to solve 8-puzzles (3x3 grid) using an immutable optimal-solution table.",
     version="1.1.0",
     lifespan=lifespan
 )
@@ -83,7 +83,7 @@ def read_root():
     """A simple health check endpoint to confirm the API is running."""
     return {
         "status": "ok",
-        "database_entries": puzzle_service.index.ntotal if puzzle_service.index else 0,
+        "database_entries": puzzle_service.database_entries,
         "message": "Welcome to the Puzzle Solver API!"
     }
 
@@ -106,7 +106,10 @@ async def solve_puzzle(puzzle: PuzzleState):
     # Convert list to tuple for the service layer
     query_state_tuple = tuple(puzzle.state)
     
-    solution_path = puzzle_service.solve_using_database(query_state_tuple)
+    try:
+        solution_path = puzzle_service.solve_using_database(query_state_tuple)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     
     if not solution_path:
         raise HTTPException(status_code=404, detail="No solution could be found for the given puzzle state.")

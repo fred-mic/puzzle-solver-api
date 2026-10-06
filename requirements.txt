@@ -7,5 +7,3 @@ tqdm
 python-multipart
 setuptools
 pybind11
-numpy
-faiss-cpu

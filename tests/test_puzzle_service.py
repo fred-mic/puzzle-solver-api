@@ -20,7 +20,7 @@ class TestPuzzleService(unittest.TestCase):
     def test_import_and_basic_setup(self):
         # Sanity check that PuzzleService initialized correctly
         self.assertIsInstance(self.puzzle_service, PuzzleService)
-        self.assertEqual(self.puzzle_service.vector_dim, self.puzzle_service.grid_size ** 2)
+        self.assertEqual(self.puzzle_service.tile_count, self.puzzle_service.grid_size ** 2)
         self.assertIsInstance(self.puzzle_service.goal_state, tuple)
 
     def test_generate_puzzle_states_basic(self):
@@ -69,11 +69,11 @@ class TestPuzzleService(unittest.TestCase):
         states = self.puzzle_service.generate_puzzle_states(num_puzzles)
         for state in states:
             self.assertIsInstance(state, tuple)
-            self.assertEqual(len(state), self.puzzle_service.vector_dim)
+            self.assertEqual(len(state), self.puzzle_service.tile_count)
             for tile in state:
                 self.assertIsInstance(tile, int)
                 self.assertGreaterEqual(tile, 0)
-                self.assertLess(tile, self.puzzle_service.vector_dim)
+                self.assertLess(tile, self.puzzle_service.tile_count)
 
     def test_generate_puzzle_states_duplicate_states(self):
         num_puzzles = 20
