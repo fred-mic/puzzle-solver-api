@@ -68,8 +68,8 @@ public:
             QueueNode current = open_heap.top();
             open_heap.pop();
 
-            const auto current_g_it = g_score.find(current.state);
-            if (current_g_it == g_score.end() || current.g_score != current_g_it->second) {
+            if (const auto current_g_it = g_score.find(current.state);
+                current_g_it == g_score.end() || current.g_score != current_g_it->second) {
                 continue;
             }
 
@@ -83,6 +83,9 @@ public:
             int empty_r = empty_index / grid_size_;
             int empty_c = empty_index % grid_size_;
 
+            // Use the validated queue cost; inserting neighbors may rehash g_score.
+            const int tentative_g_score = current.g_score + 1;
+
             // Explore neighbors
             for (const auto& move : kDirections) {
                 int tile_r = empty_r + move.first;
@@ -93,7 +96,6 @@ public:
                     State neighbor_state = current_state;
                     std::swap(neighbor_state[empty_index], neighbor_state[tile_index]);
 
-                    int tentative_g_score = current_g_it->second + 1;
                     auto neighbor_g_it = g_score.find(neighbor_state);
 
                     if (neighbor_g_it == g_score.end() || tentative_g_score < neighbor_g_it->second) {

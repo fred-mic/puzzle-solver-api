@@ -188,6 +188,22 @@ python -m unittest discover -s tests -p 'test_solution_database.py' -v
 These standard-library-only tests cover permutation ranking, immutable data,
 bounded parsing, corrupt headers/checksums/routes, and atomic write failures.
 
+## Native C++ Regression Tests
+
+```bash
+python -m unittest discover -s tests -p 'test_cpp_solver.py' -v
+```
+
+These tests require `g++` or `clang++` and are skipped if neither is available.
+They compile the real solver and a temporary copy with a checked score-map
+wrapper. The wrapper detects iterator use after actual rehashing, making this
+regression deterministic. Both builds verify legal optimal paths through
+31 moves and rejection of invalid states/configurations. No production map
+implementation is replaced.
+
+After C++ source changes, rebuild the Python extension with
+`python setup.py build_ext --inplace` before running the application.
+
 Run all tests after building the native extension:
 
 ```bash
