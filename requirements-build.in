@@ -1,0 +1,4 @@
+# Native extension build tools; never installed in the runtime image.
+setuptools
+wheel
+pybind11

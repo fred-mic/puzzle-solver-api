@@ -1,0 +1,6 @@
+# Runtime dependencies. Regenerate requirements.txt with the command in README.md.
+fastapi
+python-dotenv
+uvicorn[standard]
+tqdm
+python-multipart

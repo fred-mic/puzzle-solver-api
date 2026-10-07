@@ -11,7 +11,8 @@ namespace py = pybind11;
 // The first argument is the name of the module as it will appear in Python (e.g., `import cpp-solver`).
 // The second argument, 'm', is a variable representing the module object.
 PYBIND11_MODULE(cpp_solver, m) {
-    m.doc() = "High-performance C++ puzzle solver"; // Optional module docstring
+    m.doc() = "High-performance C++ puzzle solver";
+    m.attr("__version__") = VERSION_INFO;
 
     // Expose the 'solve_with_a_star' function to Python.
     // We name it "solve" in Python for convenience.

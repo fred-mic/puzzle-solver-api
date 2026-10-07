@@ -1,18 +1,33 @@
-# .dockerignore
-
-# Git files
+# Version control and local agent/editor state
 .git/
 .gitignore
+.pi/
+.vscode/
 
-# Python virtual environment and cache
+# Python virtual environments, caches, and native build artifacts
 venv/
+.venv/
 __pycache__/
-*.pyc
-
-# Local environment variables and secrets
-# This is CRITICAL to prevent your secrets from being copied into the image.
-.env
-
-# Build artifacts from other processes (like C++ builds)
+*.py[cod]
+*.so
+*.pyd
+*.egg-info/
 build/
 dist/
+
+# Environment files (including production/local variants) and secret keys
+.env
+.env.*
+*.env
+*.env.*
+**/.env
+**/.env.*
+**/*.env
+**/*.env.*
+*.pem
+*.key
+
+# Non-runtime project content
+tests/
+.github/
+aws/

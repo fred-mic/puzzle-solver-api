@@ -57,9 +57,52 @@ with build instructions; there is no Python solver fallback.
 **Run this from your terminal:**
 
 ```bash
+pip install -r requirements-build.txt
 python setup.py build_ext --inplace
 # Verify that the native module imports and solves a one-move puzzle.
 python -c "import cpp_solver; print(cpp_solver.solve([1,2,3,4,5,6,7,0,8]))"
+```
+
+### Build, runtime, and dependency locks
+
+Python 3.13 is the supported deployment target. `requirements.txt` contains only
+runtime dependencies; `requirements-build.txt` contains the native compiler's
+Python tooling. A C++17 compiler is also required (GCC/Clang or MSVC).
+`pyproject.toml` declares the same pinned tools for isolated wheel builds.
+`VERSION` is the native module version, exported as `cpp_solver.__version__` by
+both setuptools and CMake; it is not the Python interpreter version.
+
+To build with CMake using the installed, pinned pybind11 (no GitHub fetch):
+
+```bash
+cmake -S cpp-solver -B build/cmake -Dpybind11_DIR="$(python -m pybind11 --cmakedir)" -DPython_EXECUTABLE="$(python -c 'import sys; print(sys.executable)')" -DCMAKE_BUILD_TYPE=Release
+cmake --build build/cmake --config Release
+```
+
+The `.in` files are dependency inputs; the `.txt` files pin all direct and
+transitive dependencies, with platform markers for Linux and Windows. To update
+locks using uv 0.11.8:
+
+```bash
+uv pip compile requirements.in --universal --python-version 3.13 -o requirements.txt
+uv pip compile requirements-build.in --universal --python-version 3.13 -o requirements-build.txt
+uv pip compile requirements-dev.in --universal --python-version 3.13 -o requirements-dev.txt
+uvx --from pip-audit==2.10.1 pip-audit --no-deps --disable-pip -r requirements.txt -r requirements-build.txt -r requirements-dev.txt
+```
+
+Add `--upgrade` to the compile commands to refresh existing pins. When changing
+build pins, update `[build-system].requires` in `pyproject.toml` to match
+`requirements-build.txt`. CI checks this and audits runtime, build, and test locks
+on pushes, pull requests, and weekly; a vulnerability fails the job.
+
+The Docker build compiles the extension and dependency wheels in a builder
+stage. The production stage runs as UID/GID 10001, with no compiler or pybind11,
+and copies only runtime application files and the data-only solution table.
+Environment files are excluded from the build context; supply the secret at run time:
+
+```bash
+docker build -t puzzle-solver-api .
+docker run --rm --env-file .env -p 8000:8000 puzzle-solver-api
 ```
 
 ### 3. Build the Solution Database

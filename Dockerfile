@@ -1,34 +1,44 @@
-# Dockerfile
+# Use the same supported stable Python release and OS in both stages.
+FROM python:3.13-slim-bookworm AS builder
+WORKDIR /build
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Latest Python NOT RECOMMENDED for production:
-FROM python:3.13-rc-slim
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends g++ \
+    && rm -rf /var/lib/apt/lists/*
 
-# Set the working directory inside the container
+COPY requirements.txt requirements-build.txt ./
+RUN python -m pip install --no-cache-dir -r requirements-build.txt \
+    && python -m pip wheel --no-cache-dir --no-deps -r requirements.txt -w /wheels
+
+COPY setup.py pyproject.toml MANIFEST.in VERSION ./
+COPY cpp-solver/src/ ./cpp-solver/src/
+RUN python -m pip wheel --no-cache-dir --no-deps --no-build-isolation . -w /wheels
+
+FROM python:3.13-slim-bookworm AS runtime
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PATH="/opt/venv/bin:$PATH"
 WORKDIR /app
 
-# Set environment variables to prevent Python from writing .pyc files
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+# Only the C++ runtime library is needed; no compiler or build tools.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libstdc++6 \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --gid 10001 app \
+    && useradd --uid 10001 --gid app --create-home app \
+    && python -m venv /opt/venv
 
-# --- Stage 2: Install Dependencies ---
-# Copy only the requirements file first to leverage Docker's layer caching.
-# This layer will only be rebuilt if requirements.txt changes.
-COPY requirements.txt .
+COPY requirements.txt ./
+# Mount wheels for installation without retaining them in an image layer.
+RUN --mount=from=builder,source=/wheels,target=/wheels \
+    python -m pip install --no-cache-dir --no-index --find-links=/wheels --no-deps \
+        -r requirements.txt cpp_solver \
+    && python -m pip check \
+    && python -c "import cpp_solver; assert cpp_solver.solve([1,2,3,4,5,6,7,0,8]) == [(2, 2)]"
 
-# Install the Python dependencies
-# --no-cache-dir keeps the image size smaller
-RUN pip install --no-cache-dir -r requirements.txt
-
-# --- Stage 3: Copy Application Code ---
-# Copy the rest of your application's source code into the container
-COPY . .
-
-# --- Stage 4: Expose the Port ---
-# Let Docker know that the container listens on port 8000
+COPY main.py config.py puzzle_service.py solution_database.py build_db.py puzzle_solutions.bin ./
+USER app
 EXPOSE 8000
-
-# --- Stage 5: Define the Runtime Command ---
-# This is the command that will run when the container starts.
-# Use --host 0.0.0.0 to make the server accessible from outside the container.
-# Using 'localhost' or '127.0.0.1' would only allow connections from *within* the container.
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

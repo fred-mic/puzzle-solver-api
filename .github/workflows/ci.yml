@@ -1,0 +1,68 @@
+name: Build, test, and audit
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: 'requirements*.txt'
+      - name: Install locked build and test dependencies
+        run: python -m pip install -r requirements-build.txt -r requirements-dev.txt
+      - name: Audit all locked dependencies (fail on vulnerabilities)
+        run: |
+          python -m pip install pip-audit==2.10.1
+          python -m pip_audit --no-deps --disable-pip -r requirements.txt -r requirements-build.txt -r requirements-dev.txt
+      - name: Build setuptools extension and run regressions
+        run: |
+          python setup.py build_ext --inplace
+          python -m pip check
+          python -m unittest discover -s tests -v
+      - name: Build CMake targets (GCC on Linux, MSVC on Windows)
+        run: |
+          cmake -S cpp-solver -B build/cmake -Dpybind11_DIR="$(python -m pybind11 --cmakedir)" -DPython_EXECUTABLE="$(python -c 'import sys; print(sys.executable)')" -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/cmake --config Release --parallel 2
+      - name: Verify CMake module independently of setuptools
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            module_dir="$GITHUB_WORKSPACE/build/cmake/Release"
+          else
+            module_dir="$GITHUB_WORKSPACE/build/cmake"
+          fi
+          cd "$RUNNER_TEMP"
+          PYTHONPATH="$module_dir" python -c "import os; from pathlib import Path; import cpp_solver; assert cpp_solver.__version__ == (Path(os.environ['GITHUB_WORKSPACE']) / 'VERSION').read_text().strip(); assert cpp_solver.solve([1,2,3,4,5,6,7,0,8]) == [(2,2)]"
+
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build production image
+        run: docker build -t puzzle-solver-api:test .
+      - name: Verify API startup and health
+        run: |
+          docker run -d --name api-smoke -e API_SECRET_TOKEN=ci-smoke-test -p 127.0.0.1:18000:8000 puzzle-solver-api:test
+          trap 'docker logs api-smoke; docker rm -f api-smoke' EXIT
+          curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 1 http://127.0.0.1:18000/
+      - name: Verify non-root runtime, native module, and database
+        run: |
+          docker run --rm -e API_SECRET_TOKEN=ci-smoke-test puzzle-solver-api:test python -c "import os, importlib.util, importlib.metadata, cpp_solver, main; from puzzle_service import PuzzleService; assert os.getuid() == 10001; assert cpp_solver.__version__ == importlib.metadata.version('cpp_solver'); assert cpp_solver.solve([1,2,3,4,5,6,7,0,8]) == [(2,2)]; assert importlib.util.find_spec('pybind11') is None; assert importlib.util.find_spec('setuptools') is None; service = PuzzleService(); service.load_database(); assert service.database_entries == 181440"
